@@ -1,31 +1,36 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar, decimal, index } from "drizzle-orm/mysql-core";
+import { integer, index, numeric, pgEnum, pgTable, serial, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+const userRole = pgEnum("user_role", ["user", "admin"]);
+const sourceKind = pgEnum("crm_source_kind", ["notion", "google_sheets", "file", "manual"]);
+const dedupeState = pgEnum("crm_dedupe_status", ["clear", "review", "merged"]);
+const importState = pgEnum("crm_import_status", ["preview", "approved", "completed", "failed"]);
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  role: userRole("role").default("user").notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
+  lastSignedIn: timestamp("lastSignedIn", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const crmSources = mysqlTable("crm_sources", {
-  id: int("id").autoincrement().primaryKey(),
+export const crmSources = pgTable("crm_sources", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 120 }).notNull(),
-  kind: mysqlEnum("kind", ["notion", "google_sheets", "file", "manual"]).notNull(),
+  kind: sourceKind("kind").notNull(),
   externalId: varchar("externalId", { length: 255 }),
   externalUrl: text("externalUrl"),
-  isPrimary: int("isPrimary").default(0).notNull(),
-  lastReadAt: timestamp("lastReadAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  isPrimary: integer("isPrimary").default(0).notNull(),
+  lastReadAt: timestamp("lastReadAt", { withTimezone: true }),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 }, table => ({ sourceExternalIdx: uniqueIndex("crm_sources_external_idx").on(table.kind, table.externalId) }));
 
-export const crmContacts = mysqlTable("crm_contacts", {
-  id: int("id").autoincrement().primaryKey(),
+export const crmContacts = pgTable("crm_contacts", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 180 }).notNull(),
   email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 40 }),
@@ -35,15 +40,15 @@ export const crmContacts = mysqlTable("crm_contacts", {
   region: varchar("region", { length: 160 }),
   neighborhood: varchar("neighborhood", { length: 255 }),
   notes: text("notes"),
-  dedupeStatus: mysqlEnum("dedupeStatus", ["clear", "review", "merged"]).default("clear").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  dedupeStatus: dedupeState("dedupeStatus").default("clear").notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 }, table => ({ emailIdx: index("crm_contacts_email_idx").on(table.normalizedEmail), phoneIdx: index("crm_contacts_phone_idx").on(table.normalizedPhone) }));
 
-export const crmLeads = mysqlTable("crm_leads", {
-  id: int("id").autoincrement().primaryKey(),
-  contactId: int("contactId").notNull(),
-  sourceId: int("sourceId"),
+export const crmLeads = pgTable("crm_leads", {
+  id: serial("id").primaryKey(),
+  contactId: integer("contactId").notNull(),
+  sourceId: integer("sourceId"),
   externalId: varchar("externalId", { length: 255 }),
   sourceUrl: text("sourceUrl"),
   origin: varchar("origin", { length: 120 }),
@@ -52,55 +57,55 @@ export const crmLeads = mysqlTable("crm_leads", {
   temperature: varchar("temperature", { length: 80 }),
   objective: varchar("objective", { length: 160 }),
   propertyInterest: varchar("propertyInterest", { length: 255 }),
-  estimatedValue: decimal("estimatedValue", { precision: 14, scale: 2 }),
+  estimatedValue: numeric("estimatedValue", { precision: 14, scale: 2 }),
   nextAction: varchar("nextAction", { length: 255 }),
-  enteredAt: timestamp("enteredAt"),
-  lastInteractionAt: timestamp("lastInteractionAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  enteredAt: timestamp("enteredAt", { withTimezone: true }),
+  lastInteractionAt: timestamp("lastInteractionAt", { withTimezone: true }),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 }, table => ({ leadExternalIdx: uniqueIndex("crm_leads_source_external_idx").on(table.sourceId, table.externalId), contactIdx: index("crm_leads_contact_idx").on(table.contactId) }));
 
-export const crmProperties = mysqlTable("crm_properties", {
-  id: int("id").autoincrement().primaryKey(),
-  sourceId: int("sourceId"),
+export const crmProperties = pgTable("crm_properties", {
+  id: serial("id").primaryKey(),
+  sourceId: integer("sourceId"),
   externalId: varchar("externalId", { length: 255 }),
   development: varchar("development", { length: 255 }),
   developer: varchar("developer", { length: 180 }),
   neighborhood: varchar("neighborhood", { length: 180 }),
   address: text("address"),
   availability: varchar("availability", { length: 120 }),
-  deliveryDate: timestamp("deliveryDate"),
+  deliveryDate: timestamp("deliveryDate", { withTimezone: true }),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 }, table => ({ propertyExternalIdx: uniqueIndex("crm_properties_source_external_idx").on(table.sourceId, table.externalId) }));
 
-export const crmActivities = mysqlTable("crm_activities", {
-  id: int("id").autoincrement().primaryKey(),
-  contactId: int("contactId"),
-  leadId: int("leadId"),
-  sourceId: int("sourceId"),
+export const crmActivities = pgTable("crm_activities", {
+  id: serial("id").primaryKey(),
+  contactId: integer("contactId"),
+  leadId: integer("leadId"),
+  sourceId: integer("sourceId"),
   externalId: varchar("externalId", { length: 255 }),
   type: varchar("type", { length: 120 }).notNull(),
   result: text("result"),
   nextAction: varchar("nextAction", { length: 255 }),
-  occurredAt: timestamp("occurredAt"),
-  nextActionAt: timestamp("nextActionAt"),
+  occurredAt: timestamp("occurredAt", { withTimezone: true }),
+  nextActionAt: timestamp("nextActionAt", { withTimezone: true }),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 }, table => ({ activityExternalIdx: uniqueIndex("crm_activities_source_external_idx").on(table.sourceId, table.externalId), activityContactIdx: index("crm_activities_contact_idx").on(table.contactId) }));
 
-export const crmImports = mysqlTable("crm_imports", {
-  id: int("id").autoincrement().primaryKey(),
-  sourceId: int("sourceId").notNull(),
-  status: mysqlEnum("status", ["preview", "approved", "completed", "failed"]).default("preview").notNull(),
-  rowsRead: int("rowsRead").default(0).notNull(),
-  rowsImported: int("rowsImported").default(0).notNull(),
-  rowsReview: int("rowsReview").default(0).notNull(),
+export const crmImports = pgTable("crm_imports", {
+  id: serial("id").primaryKey(),
+  sourceId: integer("sourceId").notNull(),
+  status: importState("status").default("preview").notNull(),
+  rowsRead: integer("rowsRead").default(0).notNull(),
+  rowsImported: integer("rowsImported").default(0).notNull(),
+  rowsReview: integer("rowsReview").default(0).notNull(),
   mappingJson: text("mappingJson"),
   errorMessage: text("errorMessage"),
-  startedAt: timestamp("startedAt").defaultNow().notNull(),
-  completedAt: timestamp("completedAt"),
+  startedAt: timestamp("startedAt", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completedAt", { withTimezone: true }),
 });
 
 export type User = typeof users.$inferSelect;
