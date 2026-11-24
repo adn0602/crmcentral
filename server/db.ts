@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, crmActivities, crmContacts, crmLeads, crmSources, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -88,4 +88,43 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function listCrmContacts() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crmContacts).orderBy(desc(crmContacts.updatedAt)).limit(500);
+}
+
+export async function listCrmLeads() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crmLeads).orderBy(desc(crmLeads.updatedAt)).limit(500);
+}
+
+export async function listCrmActivities() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crmActivities).orderBy(desc(crmActivities.occurredAt)).limit(500);
+}
+
+export async function listCrmSources() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crmSources).orderBy(desc(crmSources.updatedAt));
+}
+
+export async function getCrmCounts() {
+  const db = await getDb();
+  if (!db) return { contacts: 0, leads: 0, activities: 0, sources: 0 };
+  const [contacts, leads, activities, sources] = await Promise.all([
+    db.select({ value: count() }).from(crmContacts),
+    db.select({ value: count() }).from(crmLeads),
+    db.select({ value: count() }).from(crmActivities),
+    db.select({ value: count() }).from(crmSources),
+  ]);
+  return {
+    contacts: contacts[0]?.value ?? 0,
+    leads: leads[0]?.value ?? 0,
+    activities: activities[0]?.value ?? 0,
+    sources: sources[0]?.value ?? 0,
+  };
+}
