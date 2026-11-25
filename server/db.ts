@@ -119,16 +119,21 @@ export async function listCrmSources() {
 export async function getCrmCounts() {
   const db = await getDb();
   if (!db) return { contacts: 0, leads: 0, activities: 0, sources: 0 };
-  const [contacts, leads, activities, sources] = await Promise.all([
-    db.select({ value: count() }).from(crmContacts),
-    db.select({ value: count() }).from(crmLeads),
-    db.select({ value: count() }).from(crmActivities),
-    db.select({ value: count() }).from(crmSources),
-  ]);
-  return {
-    contacts: contacts[0]?.value ?? 0,
-    leads: leads[0]?.value ?? 0,
-    activities: activities[0]?.value ?? 0,
-    sources: sources[0]?.value ?? 0,
-  };
+  try {
+    const [contacts, leads, activities, sources] = await Promise.all([
+      db.select({ value: count() }).from(crmContacts),
+      db.select({ value: count() }).from(crmLeads),
+      db.select({ value: count() }).from(crmActivities),
+      db.select({ value: count() }).from(crmSources),
+    ]);
+    return {
+      contacts: contacts[0]?.value ?? 0,
+      leads: leads[0]?.value ?? 0,
+      activities: activities[0]?.value ?? 0,
+      sources: sources[0]?.value ?? 0,
+    };
+  } catch (error) {
+    console.error("[Database] CRM counts query failed:", error instanceof Error ? error.message : String(error));
+    throw error;
+  }
 }
