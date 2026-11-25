@@ -133,7 +133,15 @@ export async function getCrmCounts() {
       sources: sources[0]?.value ?? 0,
     };
   } catch (error) {
-    console.error("[Database] CRM counts query failed:", error instanceof Error ? error.message : String(error));
+    const detail = error instanceof Error
+      ? {
+          name: error.name,
+          message: error.message,
+          code: "code" in error ? error.code : undefined,
+          cause: error.cause instanceof Error ? error.cause.message : undefined,
+        }
+      : { message: String(error) };
+    console.error("[Database] CRM counts query failed:", JSON.stringify(detail));
     throw error;
   }
 }
