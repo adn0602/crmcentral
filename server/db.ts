@@ -145,3 +145,31 @@ export async function getCrmCounts() {
     throw error;
   }
 }
+
+// ==========================================
+// NOVAS FUNÇÕES PARA INSERIR E EDITAR DADOS
+// ==========================================
+
+export async function createCrmContact(data: typeof crmContacts.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(crmContacts).values(data).returning();
+  return result[0];
+}
+
+export async function updateCrmContact(id: number, data: Partial<typeof crmContacts.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.update(crmContacts)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(crmContacts.id, id))
+    .returning();
+  return result[0];
+}
+
+export async function deleteCrmContact(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(crmContacts).where(eq(crmContacts.id, id));
+  return { success: true };
+}
